@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import swaggerRouter from './routes/swagger';
+import routes from './routes';
 
 // Load environment variables
 dotenv.config();
@@ -34,7 +35,7 @@ app.set('trust proxy', 1);
 // API Key middleware
 const apiKeyAuth = (req: Request, res: Response, next: NextFunction): void => {
   const apiKey = req.headers['x-api-key'];
-  const validApiKey = process.env.API_KEY || 'el7a2ny-test-key-123';
+  const validApiKey = process.env.API_KEY || 'pharmasync-test-key-123';
 
   if (!apiKey || apiKey !== validApiKey) {
     res.status(401).json({
@@ -78,14 +79,14 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 app.get('/', (_req: Request, res: Response) => {
-  res.send('el7a2ny-backend');
+  res.send('pharmasync-backend');
 });
 
 // Swagger documentation route (no authentication required)
 app.use('/docs', swaggerRouter);
 
 // Protected routes (API key required)
-// app.use('/', apiKeyAuth, routes);
+app.use('/', apiKeyAuth, routes);
 
 // Error handling
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

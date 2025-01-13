@@ -7,21 +7,21 @@ const router = Router();
 let url;
 if (process.env.ENV === 'dev') url = 'http://localhost:5000/api/v1';
 else if (process.env.ENV === 'production')
-  url = 'https://el7a2ny-backend-production.up.railway.app/api/v1';
+  url = 'https://pharmasync-backend-production.up.railway.app/api/v1';
 
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
-    title: 'El7a2ny API',
+    title: 'pharmasync API',
     version: '1.0.0',
     description: `
-API documentation for El7a2ny App.
+API documentation for pharmasync App.
 
 ## Authentication
 
 All API endpoints require an API key to be sent in the request header.
 - Header name: \`x-api-key\`
-- Example value: \`el7a2ny-test-key-123\` (for development)
+- Example value: \`pharmasync-test-key-123\` (for development)
 
 To test the endpoints:
 1. Click the 'Authorize' button at the top
@@ -29,7 +29,7 @@ To test the endpoints:
 3. Click 'Authorize' to save
 4. Your requests will now include the API key
 
-This API uses KeyCloak Authentication. There are two ways to authenticate:
+This API uses Passport Authentication. There are two ways to authenticate:
 
 1. **Register a new user:**
    - Use the \`/auth/register\` endpoint
@@ -71,7 +71,7 @@ Note: All protected endpoints require a valid JWT token.
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
-        description: 'KeyCloak JWT token obtained from login/register'
+        description: 'P JWT token obtained from login/register'
       }
     },
     schemas: {
