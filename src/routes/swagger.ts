@@ -7,7 +7,7 @@ const router = Router();
 let url;
 if (process.env.ENV === 'dev') url = 'http://localhost:5000/api/v1';
 else if (process.env.ENV === 'production')
-  url = 'https://pharmasync-backend-production.up.railway.app/api/v1';
+  url = 'https://pharmasync-api-production.up.railway.app/api/v1';
 
 const swaggerDefinition = {
   openapi: '3.0.0',
