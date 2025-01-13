@@ -99,7 +99,7 @@ export class AuthController {
 
   static async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      const user = req.user as { id: number };
+      const user = req.user as { id: string };
       await AuthService.logout(user.id);
       res.json({ message: 'Logged out successfully' });
     } catch (error) {

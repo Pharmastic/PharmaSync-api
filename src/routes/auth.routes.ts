@@ -233,8 +233,6 @@ router.post('/refresh-token', AuthController.refreshToken);
  *       - Authentication
  *     summary: Logout user
  *     description: Invalidate the user's refresh token
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Successfully logged out

@@ -4,6 +4,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import swaggerRouter from './routes/swagger';
+import passport from 'passport';
+import { configurePassport } from './config/passport';
 import routes from './routes';
 
 // Load environment variables
@@ -13,6 +15,12 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || '5000';
 const ENV = process.env.ENV || 'dev';
+
+// Configure Passport
+configurePassport(passport);
+
+// Initialize Passport
+app.use(passport.initialize());
 
 let databaseUrl: string;
 
@@ -99,8 +107,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // 404 handler
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((_req: Request, res: Response, _next: NextFunction) => {
+app.use((_req: Request, res: Response) => {
   res.status(404).json({
     error: 'Not Found',
     message: 'The requested resource was not found'

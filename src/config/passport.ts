@@ -1,12 +1,14 @@
+// src/config/passport.ts
+
 import { PassportStatic } from 'passport';
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
-import prisma from './database_client';
+import prisma from '../config/database_client';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-export default function configurePassport(passport: PassportStatic) {
+export function configurePassport(passport: PassportStatic): void {
   // Local Strategy for username/password authentication
   passport.use(
     new LocalStrategy(

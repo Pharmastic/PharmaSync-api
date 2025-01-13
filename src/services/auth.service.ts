@@ -63,7 +63,7 @@ export class AuthService {
 
   static async refreshToken(token: string) {
     try {
-      const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as { id: number };
+      const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as { id: string };
 
       const user = await prisma.user.findFirst({
         where: {
@@ -85,7 +85,7 @@ export class AuthService {
     }
   }
 
-  static async logout(userId: number) {
+  static async logout(userId: string) {
     await prisma.user.update({
       where: { id: userId },
       data: { refreshToken: null }

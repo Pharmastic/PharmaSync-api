@@ -8,17 +8,109 @@ datasource db {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
+  id           String    @id @default(uuid())
+  email        String    @unique
   name         String?
   password     String
-  refreshToken String?  @unique
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  refreshToken String?   @unique
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  products     Product[] @relation("ProductCreatedBy")
 }
 
 enum Role {
   USER
   ADMIN
+  MANAGER
+  PHARMACIST
+}
+
+model Product {
+  id                   String         @id @default(uuid())
+  name                 String
+  genericName          String?
+  manufacturer         String
+  description          String?
+  barcode              String?        @unique
+  sku                  String         @unique
+  price                Decimal
+  costPrice            Decimal
+  quantity             Int            @default(0)
+  reorderPoint         Int            @default(10)
+  expiryDate           DateTime?
+  category             Category       @relation(fields: [categoryId], references: [id])
+  categoryId           String
+  supplier             Supplier       @relation(fields: [supplierId], references: [id])
+  supplierId           String
+  createdBy            User           @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  createdById          String
+  batchNumber          String?
+  dosageForm           DosageForm
+  strength             String?
+  storage              String?
+  prescriptionRequired Boolean        @default(false)
+  status               ProductStatus  @default(ACTIVE)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  inventoryLogs        InventoryLog[]
+}
+
+enum ProductStatus {
+  ACTIVE
+  DISCONTINUED
+  OUT_OF_STOCK
+  EXPIRED
+}
+
+enum DosageForm {
+  TABLET
+  CAPSULE
+  LIQUID
+  INJECTION
+  CREAM
+  OINTMENT
+  DROPS
+  INHALER
+  POWDER
+  OTHER
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Supplier {
+  id        String    @id @default(uuid())
+  name      String
+  email     String?   @unique
+  phone     String?
+  address   String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model InventoryLog {
+  id        String   @id @default(uuid())
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  type      LogType
+  quantity  Int
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+enum LogType {
+  PURCHASE
+  SALE
+  ADJUSTMENT
+  RETURN
+  EXPIRED
+  DAMAGED
 }
