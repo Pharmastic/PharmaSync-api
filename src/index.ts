@@ -24,6 +24,8 @@ app.use(passport.initialize());
 
 let databaseUrl: string;
 
+console.log('ENV:', ENV);
+
 switch (ENV) {
   case 'production':
     databaseUrl = process.env.DATABASE_URL_PROD || '';

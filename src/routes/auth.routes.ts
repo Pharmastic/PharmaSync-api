@@ -60,6 +60,11 @@ import passport from 'passport';
  *           type: string
  *           description: User full name (optional)
  *           example: John Doe
+ *         role:
+ *          type: string
+ *          enum: [USER, ADMIN, PHARMACIST, MANAGER]
+ *          description: User role (optional)
+ *          example: USER
  *
  *     LoginRequest:
  *       type: object

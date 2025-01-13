@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import prisma from '../config/database_client';
-import { User } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_REFRESH_SECRET =
@@ -28,7 +28,12 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  static async register(email: string, password: string, name?: string) {
+  static async register(
+    email: string,
+    password: string,
+    name?: string,
+    role?: Role
+  ) {
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
@@ -43,7 +48,8 @@ export class AuthService {
       data: {
         email,
         password: hashedPassword,
-        name
+        name,
+        role: role || 'USER'
       }
     });
 

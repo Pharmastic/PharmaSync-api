@@ -4,10 +4,19 @@ import { Router } from 'express';
 
 const router = Router();
 
-let url;
-if (process.env.ENV === 'dev') url = 'http://localhost:5000/api/v1';
-else if (process.env.ENV === 'production')
-  url = 'https://pharmasync-api-production.up.railway.app/api/v1';
+const ENV = process.env.ENV || 'dev';
+const PORT = process.env.PORT || 5000;
+
+const getApiUrl = () => {
+  if (ENV === 'dev') {
+    return `http://localhost:${PORT}/api/v1`;
+  } else if (ENV === 'production') {
+    return 'https://pharmasync-api-production.up.railway.app/api/v1';
+  }
+  return `http://localhost:${PORT}/api/v1`;
+};
+
+const url = getApiUrl();
 
 const swaggerDefinition = {
   openapi: '3.0.0',

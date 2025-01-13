@@ -13,9 +13,12 @@ interface Info {
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
-  name: z.string().optional()
+  name: z.string().optional(),
+  role: z
+    .enum(['USER', 'PHARMACIST', 'ADMIN', 'MANAGER'])
+    .optional()
+    .default('USER')
 });
-
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string()
@@ -24,8 +27,8 @@ const loginSchema = z.object({
 export class AuthController {
   static async register(req: Request, res: Response, next: NextFunction) {
     try {
-      const { email, password, name } = registerSchema.parse(req.body);
-      const result = await AuthService.register(email, password, name);
+      const { email, password, name, role } = registerSchema.parse(req.body);
+      const result = await AuthService.register(email, password, name, role);
 
       res.status(201).json(result);
     } catch (error) {
