@@ -7,7 +7,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/v1/products:
+ * /products:
  *   post:
  *     tags: [Products]
  *     summary: Create a new product
@@ -82,7 +82,7 @@ router.post(
 
 /**
  * @swagger
- * /api/v1/products:
+ * /products:
  *   get:
  *     tags: [Products]
  *     summary: Get all products
@@ -127,7 +127,7 @@ router.get('/', ProductController.getAll);
 
 /**
  * @swagger
- * /api/v1/products/{id}:
+ * /products/{id}:
  *   get:
  *     tags: [Products]
  *     summary: Get a product by ID
@@ -148,7 +148,7 @@ router.get('/:id', ProductController.getOne);
 
 /**
  * @swagger
- * /api/v1/products/{id}:
+ * /products/{id}:
  *   put:
  *     tags: [Products]
  *     summary: Update a product
@@ -180,7 +180,7 @@ router.put(
 
 /**
  * @swagger
- * /api/v1/products/{id}/stock:
+ * /products/{id}/stock:
  *   put:
  *     tags: [Products]
  *     summary: Update product stock
@@ -221,7 +221,7 @@ router.put(
 
 /**
  * @swagger
- * /api/v1/products/{id}:
+ * /products/{id}:
  *   delete:
  *     tags: [Products]
  *     summary: Delete a product
@@ -247,7 +247,7 @@ router.delete(
 
 /**
  * @swagger
- * /api/v1/products/low-stock:
+ * /products/low-stock:
  *   get:
  *     tags: [Products]
  *     summary: Get products with low stock
@@ -259,7 +259,7 @@ router.get('/low-stock', ProductController.getLowStock);
 
 /**
  * @swagger
- * /api/v1/products/expiring:
+ * /products/expiring:
  *   get:
  *     tags: [Products]
  *     summary: Get products expiring soon

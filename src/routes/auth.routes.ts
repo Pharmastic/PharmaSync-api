@@ -137,7 +137,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/v1/auth/register:
+ * /auth/register:
  *   post:
  *     tags:
  *       - Authentication
@@ -167,7 +167,7 @@ router.post('/register', AuthController.register);
 
 /**
  * @swagger
- * /api/v1/auth/login:
+ * /auth/login:
  *   post:
  *     tags:
  *       - Authentication
@@ -197,7 +197,7 @@ router.post('/login', AuthController.login);
 
 /**
  * @swagger
- * /api/v1/auth/refresh-token:
+ * /auth/refresh-token:
  *   post:
  *     tags:
  *       - Authentication
@@ -227,7 +227,7 @@ router.post('/refresh-token', AuthController.refreshToken);
 
 /**
  * @swagger
- * /api/v1/auth/logout:
+ * /auth/logout:
  *   post:
  *     tags:
  *       - Authentication
