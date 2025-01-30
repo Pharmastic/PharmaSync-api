@@ -70,6 +70,7 @@
     "nodemon": "^3.1.7",
     "prettier": "^3.4.1",
     "prisma": "^6.1.0",
+    "prisma-json-schema-generator": "^5.1.5",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",

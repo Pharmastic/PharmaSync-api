@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import swaggerRouter from './routes/swagger';
+import swaggerRouter from './config/swagger.config';
 import passport from 'passport';
 import { configurePassport } from './config/passport';
 import routes from './routes';

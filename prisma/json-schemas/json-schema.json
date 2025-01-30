@@ -1,0 +1,324 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "User": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "refreshToken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "default": "USER",
+          "enum": [
+            "USER",
+            "ADMIN",
+            "MANAGER",
+            "PHARMACIST"
+          ]
+        },
+        "isBlocked": {
+          "type": "boolean",
+          "default": false
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Product"
+          }
+        }
+      }
+    },
+    "Product": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "genericName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "barcode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sku": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "costPrice": {
+          "type": "number"
+        },
+        "quantity": {
+          "type": "integer",
+          "default": 0
+        },
+        "reorderPoint": {
+          "type": "integer",
+          "default": 10
+        },
+        "expiryDate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "category": {
+          "$ref": "#/definitions/Category"
+        },
+        "categoryId": {
+          "type": "string"
+        },
+        "supplier": {
+          "$ref": "#/definitions/Supplier"
+        },
+        "supplierId": {
+          "type": "string"
+        },
+        "createdBy": {
+          "$ref": "#/definitions/User"
+        },
+        "createdById": {
+          "type": "string"
+        },
+        "batchNumber": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dosageForm": {
+          "type": "string",
+          "enum": [
+            "TABLET",
+            "CAPSULE",
+            "LIQUID",
+            "INJECTION",
+            "CREAM",
+            "OINTMENT",
+            "DROPS",
+            "INHALER",
+            "POWDER",
+            "OTHER"
+          ]
+        },
+        "strength": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "storage": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prescriptionRequired": {
+          "type": "boolean",
+          "default": false
+        },
+        "status": {
+          "type": "string",
+          "default": "ACTIVE",
+          "enum": [
+            "ACTIVE",
+            "DISCONTINUED",
+            "OUT_OF_STOCK",
+            "EXPIRED"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "inventoryLogs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InventoryLog"
+          }
+        }
+      }
+    },
+    "Category": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Product"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Supplier": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "address": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Product"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "InventoryLog": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "product": {
+          "$ref": "#/definitions/Product"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "PURCHASE",
+            "SALE",
+            "ADJUSTMENT",
+            "RETURN",
+            "EXPIRED",
+            "DAMAGED"
+          ]
+        },
+        "quantity": {
+          "type": "integer"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "properties": {
+    "user": {
+      "$ref": "#/definitions/User"
+    },
+    "product": {
+      "$ref": "#/definitions/Product"
+    },
+    "category": {
+      "$ref": "#/definitions/Category"
+    },
+    "supplier": {
+      "$ref": "#/definitions/Supplier"
+    },
+    "inventoryLog": {
+      "$ref": "#/definitions/InventoryLog"
+    }
+  }
+}

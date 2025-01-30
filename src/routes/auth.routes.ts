@@ -1,71 +1,37 @@
 import express from 'express';
 import { AuthController } from '../controllers/auth.controller';
 import passport from 'passport';
+import { validate } from '../middleware/validate';
+import { authSchemas } from '../schemas/auth.schemas';
+
+const router = express.Router();
 
 /**
  * @swagger
  * components:
  *   schemas:
- *     User:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: User ID
- *           example: 1
- *         email:
- *           type: string
- *           format: email
- *           description: User email address
- *           example: user@example.com
- *         name:
- *           type: string
- *           description: User full name
- *           example: John Doe
- *         role:
- *           type: string
- *           enum: [USER, ADMIN]
- *           description: User role
- *           example: USER
- *         createdAt:
- *           type: string
- *           format: date-time
- *           description: User creation timestamp
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           description: User last update timestamp
- *       required:
- *         - email
- *         - role
- *
  *     RegisterRequest:
  *       type: object
  *       required:
  *         - email
  *         - password
+ *         - firstName
+ *         - lastName
  *       properties:
  *         email:
  *           type: string
  *           format: email
- *           description: User email address
- *           example: user@example.com
  *         password:
  *           type: string
- *           format: password
  *           minLength: 6
- *           description: User password (minimum 6 characters)
- *           example: password123
- *         name:
+ *         firstName:
  *           type: string
- *           description: User full name (optional)
- *           example: John Doe
+ *         lastName:
+ *           type: string
  *         role:
- *          type: string
- *          enum: [USER, ADMIN, PHARMACIST, MANAGER]
- *          description: User role (optional)
- *          example: USER
- *
+ *           type: string
+ *           enum: [USER, ADMIN, MANAGER, PHARMACIST]
+ *           default: USER
  *     LoginRequest:
  *       type: object
  *       required:
@@ -75,28 +41,8 @@ import passport from 'passport';
  *         email:
  *           type: string
  *           format: email
- *           description: User email address
- *           example: user@example.com
  *         password:
  *           type: string
- *           format: password
- *           description: User password
- *           example: password123
- *
- *     AuthResponse:
- *       type: object
- *       properties:
- *         user:
- *           $ref: '#/components/schemas/User'
- *         accessToken:
- *           type: string
- *           description: JWT access token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *         refreshToken:
- *           type: string
- *           description: JWT refresh token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *
  *     RefreshTokenRequest:
  *       type: object
  *       required:
@@ -104,41 +50,23 @@ import passport from 'passport';
  *       properties:
  *         refreshToken:
  *           type: string
- *           description: JWT refresh token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *
+ *     AuthResponse:
+ *       type: object
+ *       properties:
+ *         user:
+ *           $ref: '#/components/schemas/User'
+ *         accessToken:
+ *           type: string
+ *         refreshToken:
+ *           type: string
  *     TokenResponse:
  *       type: object
  *       properties:
  *         accessToken:
  *           type: string
- *           description: New JWT access token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *         refreshToken:
  *           type: string
- *           description: New JWT refresh token
- *           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
- *
- *     Error:
- *       type: object
- *       properties:
- *         error:
- *           type: string
- *           description: Error message
- *           example: Invalid credentials
- *         details:
- *           type: array
- *           description: Additional error details (optional)
- *           items:
- *             type: object
- *             properties:
- *               message:
- *                 type: string
- *                 description: Detailed error message
- *                 example: Password must be at least 6 characters long
  */
-
-const router = express.Router();
 
 /**
  * @swagger
@@ -147,7 +75,7 @@ const router = express.Router();
  *     tags:
  *       - Authentication
  *     summary: Register a new user
- *     description: Creates a new user account with email and password
+ *     description: Creates a new user account
  *     requestBody:
  *       required: true
  *       content:
@@ -162,13 +90,23 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/AuthResponse'
  *       400:
- *         description: Validation error or user already exists
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: User already exists
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', AuthController.register);
+router.post(
+  '/register',
+  validate(authSchemas.register),
+  AuthController.register
+);
 
 /**
  * @swagger
@@ -198,7 +136,7 @@ router.post('/register', AuthController.register);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/login', AuthController.login);
+router.post('/login', validate(authSchemas.login), AuthController.login);
 
 /**
  * @swagger
@@ -228,7 +166,11 @@ router.post('/login', AuthController.login);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/refresh-token', AuthController.refreshToken);
+router.post(
+  '/refresh-token',
+  validate(authSchemas.refreshToken),
+  AuthController.refreshToken
+);
 
 /**
  * @swagger
@@ -248,9 +190,8 @@ router.post('/refresh-token', AuthController.refreshToken);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Logged out successfully
  *       401:
- *         description: Unauthorized - Invalid or missing token
+ *         description: Unauthorized
  *         content:
  *           application/json:
  *             schema:
@@ -260,6 +201,102 @@ router.post(
   '/logout',
   passport.authenticate('jwt', { session: false }),
   AuthController.logout
+);
+
+/**
+ * @swagger
+ * /auth/users:
+ *   get:
+ *     tags:
+ *       - Authentication
+ *     summary: Get all users
+ *     description: Retrieve a list of all users with pagination and filtering options
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for email, firstName, or lastName
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [USER, ADMIN, MANAGER, PHARMACIST]
+ *         description: Filter users by role
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           default: createdAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: List of users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       role:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       403:
+ *         description: Forbidden - User doesn't have required permissions
+ */
+router.get(
+  '/users',
+  passport.authenticate('jwt', { session: false }),
+  AuthController.getAllUsers
 );
 
 export default router;
