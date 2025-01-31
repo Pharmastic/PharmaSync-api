@@ -7,6 +7,7 @@ import swaggerRouter from './config/swagger.config';
 import passport from 'passport';
 import { configurePassport } from './config/passport';
 import routes from './routes';
+import { notFoundHandler, errorHandler } from './middleware/error.middleware';
 
 // Load environment variables
 dotenv.config();
@@ -99,22 +100,9 @@ app.use('/docs', swaggerRouter);
 app.use('/', apiKeyAuth, routes);
 
 // Error handling
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: ENV === 'production' ? 'Something went wrong' : err.message
-  });
-});
+app.use(errorHandler);
 
-// 404 handler
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Not Found',
-    message: 'The requested resource was not found'
-  });
-});
+app.use(notFoundHandler);
 
 export const server = app.listen(port, () => {
   if (ENV === 'dev') console.log(`Server running on port: ${port}`);
