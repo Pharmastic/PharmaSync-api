@@ -24,8 +24,8 @@ export class AuthController {
     process.env.JWT_SECRET || 'your-secret-key';
   private static readonly JWT_REFRESH_SECRET =
     process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key';
-  private static readonly ACCESS_TOKEN_EXPIRY = '15m';
-  private static readonly REFRESH_TOKEN_EXPIRY = '7d';
+  private static readonly ACCESS_TOKEN_EXPIRY = '7d';
+  private static readonly REFRESH_TOKEN_EXPIRY = '30d';
 
   private static async generateTokenPair(user: User): Promise<TokenPair> {
     const payload: JWTPayload = {

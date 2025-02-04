@@ -1,9 +1,94 @@
 import express from 'express';
 import { ProductController } from '../controllers/product.controller';
-import passport from 'passport';
+import { validate } from '../middleware/validate';
+import { productSchemas } from '../schemas/product.schemas';
 import { AuthMiddleware } from '../middleware/auth.middleware';
+import passport from 'passport';
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     ProductCreate:
+ *       type: object
+ *       required:
+ *         - name
+ *         - manufacturer
+ *         - sku
+ *         - price
+ *         - costPrice
+ *         - categoryId
+ *         - supplierId
+ *         - dosageForm
+ *       properties:
+ *         name:
+ *           type: string
+ *           description: Product name
+ *         genericName:
+ *           type: string
+ *           description: Generic name of the medicine
+ *         manufacturer:
+ *           type: string
+ *           description: Manufacturer name
+ *         description:
+ *           type: string
+ *           description: Product description
+ *         barcode:
+ *           type: string
+ *           description: Product barcode (must be unique)
+ *         sku:
+ *           type: string
+ *           description: Stock keeping unit (must be unique)
+ *         price:
+ *           type: number
+ *           minimum: 0
+ *           description: Selling price
+ *         costPrice:
+ *           type: number
+ *           minimum: 0
+ *           description: Purchase price
+ *         quantity:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
+ *           description: Current stock quantity
+ *         reorderPoint:
+ *           type: integer
+ *           minimum: 0
+ *           default: 10
+ *           description: Minimum quantity before reorder alert
+ *         expiryDate:
+ *           type: string
+ *           format: date-time
+ *           description: Product expiry date
+ *         categoryId:
+ *           type: string
+ *           format: uuid
+ *           description: Category ID
+ *         supplierId:
+ *           type: string
+ *           format: uuid
+ *           description: Supplier ID
+ *         batchNumber:
+ *           type: string
+ *           description: Manufacturing batch number
+ *         dosageForm:
+ *           type: string
+ *           enum: [TABLET, CAPSULE, LIQUID, INJECTION, CREAM, OINTMENT, DROPS, INHALER, POWDER, OTHER]
+ *           description: Form of the medicine
+ *         strength:
+ *           type: string
+ *           description: Medicine strength/concentration
+ *         storage:
+ *           type: string
+ *           description: Storage requirements
+ *         prescriptionRequired:
+ *           type: boolean
+ *           default: false
+ *           description: Whether prescription is required
+ */
 
 /**
  * @swagger
@@ -16,67 +101,20 @@ const router = express.Router();
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - name
- *               - manufacturer
- *               - sku
- *               - price
- *               - costPrice
- *               - categoryId
- *               - supplierId
- *               - dosageForm
- *             properties:
- *               name:
- *                 type: string
- *               genericName:
- *                 type: string
- *               manufacturer:
- *                 type: string
- *               description:
- *                 type: string
- *               barcode:
- *                 type: string
- *               sku:
- *                 type: string
- *               price:
- *                 type: number
- *               costPrice:
- *                 type: number
- *               quantity:
- *                 type: integer
- *                 minimum: 0
- *               reorderPoint:
- *                 type: integer
- *                 minimum: 0
- *               expiryDate:
- *                 type: string
- *                 format: date-time
- *               categoryId:
- *                 type: string
- *                 format: uuid
- *               supplierId:
- *                 type: string
- *                 format: uuid
- *               batchNumber:
- *                 type: string
- *               dosageForm:
- *                 type: string
- *                 enum: [TABLET, CAPSULE, LIQUID, INJECTION, CREAM, OINTMENT, DROPS, INHALER, POWDER, OTHER]
- *               strength:
- *                 type: string
- *               storage:
- *                 type: string
- *               prescriptionRequired:
- *                 type: boolean
+ *             $ref: '#/components/schemas/ProductCreate'
  *     responses:
  *       201:
  *         description: Product created successfully
+ *       400:
+ *         description: Validation error
+ *       409:
+ *         description: Product with this SKU or barcode already exists
  */
 router.post(
   '/',
   passport.authenticate('jwt', { session: false }),
   AuthMiddleware.isPharmacist,
+  validate(productSchemas.create),
   ProductController.create
 );
 
@@ -85,7 +123,7 @@ router.post(
  * /products:
  *   get:
  *     tags: [Products]
- *     summary: Get all products
+ *     summary: Get all products with filtering and pagination
  *     parameters:
  *       - in: query
  *         name: page
@@ -101,11 +139,12 @@ router.post(
  *         name: search
  *         schema:
  *           type: string
- *         description: Search term for name, generic name, or SKU
+ *         description: Search in name, generic name, or SKU
  *       - in: query
  *         name: category
  *         schema:
  *           type: string
+ *           format: uuid
  *         description: Filter by category ID
  *       - in: query
  *         name: status
@@ -119,11 +158,23 @@ router.post(
  *           type: string
  *           format: date-time
  *         description: Filter products expiring before this date
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, createdAt, quantity, price]
+ *         description: Field to sort by
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: Sort order
  *     responses:
  *       200:
- *         description: List of products
+ *         description: List of products with pagination
  */
-router.get('/', ProductController.getAll);
+router.get('/', validate(productSchemas.getAll), ProductController.getAll);
 
 /**
  * @swagger
@@ -137,14 +188,15 @@ router.get('/', ProductController.getAll);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *         description: Product ID
  *     responses:
  *       200:
- *         description: Product details
+ *         description: Product details with related data
  *       404:
  *         description: Product not found
  */
-router.get('/:id', ProductController.getOne);
+router.get('/:id', validate(productSchemas.getOne), ProductController.getOne);
 
 /**
  * @swagger
@@ -158,23 +210,29 @@ router.get('/:id', ProductController.getOne);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *         description: Product ID
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
+ *             $ref: '#/components/schemas/ProductCreate'
  *     responses:
  *       200:
  *         description: Product updated successfully
+ *       400:
+ *         description: Validation error
  *       404:
  *         description: Product not found
+ *       409:
+ *         description: Product with this SKU or barcode already exists
  */
 router.put(
   '/:id',
   passport.authenticate('jwt', { session: false }),
   AuthMiddleware.isPharmacist,
+  validate(productSchemas.update),
   ProductController.update
 );
 
@@ -190,6 +248,7 @@ router.put(
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *         description: Product ID
  *     requestBody:
  *       required: true
@@ -203,19 +262,28 @@ router.put(
  *             properties:
  *               quantity:
  *                 type: integer
+ *                 minimum: 1
+ *                 description: Quantity to add or remove
  *               type:
  *                 type: string
  *                 enum: [PURCHASE, SALE, ADJUSTMENT, RETURN, EXPIRED, DAMAGED]
+ *                 description: Type of stock movement
  *               reason:
  *                 type: string
+ *                 description: Reason for stock adjustment
  *     responses:
  *       200:
  *         description: Stock updated successfully
+ *       400:
+ *         description: Validation error or insufficient stock
+ *       404:
+ *         description: Product not found
  */
 router.put(
   '/:id/stock',
   passport.authenticate('jwt', { session: false }),
   AuthMiddleware.isPharmacist,
+  validate(productSchemas.updateStock),
   ProductController.updateStock
 );
 
@@ -231,6 +299,7 @@ router.put(
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *         description: Product ID
  *     responses:
  *       204:
@@ -242,6 +311,7 @@ router.delete(
   '/:id',
   passport.authenticate('jwt', { session: false }),
   AuthMiddleware.isManagerOrAdmin,
+  validate(productSchemas.getOne),
   ProductController.delete
 );
 
@@ -250,10 +320,10 @@ router.delete(
  * /products/low-stock:
  *   get:
  *     tags: [Products]
- *     summary: Get products with low stock
+ *     summary: Get products with stock below reorder point
  *     responses:
  *       200:
- *         description: List of products with stock below reorder point
+ *         description: List of products with low stock
  */
 router.get('/low-stock', ProductController.getLowStock);
 
@@ -262,10 +332,10 @@ router.get('/low-stock', ProductController.getLowStock);
  * /products/expiring:
  *   get:
  *     tags: [Products]
- *     summary: Get products expiring soon
+ *     summary: Get products expiring within 30 days
  *     responses:
  *       200:
- *         description: List of products expiring within 30 days
+ *         description: List of products expiring soon
  */
 router.get('/expiring', ProductController.getExpiring);
 
