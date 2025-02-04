@@ -1,343 +1,372 @@
-import { Request, Response, NextFunction } from 'express';
-import { z } from 'zod';
+import { Request, Response } from 'express';
+import { Prisma, LogType, ProductStatus } from '@prisma/client';
 import prisma from '../config/database_client';
-import { DosageForm, LogType, Prisma, ProductStatus } from '@prisma/client';
-
-// Validation schema for creating/updating a product
-const productSchema = z.object({
-  name: z.string().min(1),
-  genericName: z.string().optional(),
-  manufacturer: z.string(),
-  description: z.string().optional(),
-  barcode: z.string().optional(),
-  sku: z.string(),
-  price: z.number().positive(),
-  costPrice: z.number().positive(),
-  quantity: z.number().int().min(0),
-  reorderPoint: z.number().int().min(0),
-  expiryDate: z.string().datetime().optional(),
-  categoryId: z.string().uuid(),
-  supplierId: z.string().uuid(),
-  batchNumber: z.string().optional(),
-  dosageForm: z.nativeEnum(DosageForm),
-  strength: z.string().optional(),
-  storage: z.string().optional(),
-  prescriptionRequired: z.boolean(),
-  status: z.nativeEnum(ProductStatus).optional()
-});
+import { asyncHandler } from '../utils/error_handler';
+import {
+  productSchemas,
+  ProductCreate,
+  StockUpdate
+} from '../schemas/product.schemas';
+import {
+  ValidationError,
+  NotFoundError,
+  ConflictError
+} from '../utils/error_handler';
 
 export class ProductController {
-  static async create(req: Request, res: Response, next: NextFunction) {
-    try {
-      const data = productSchema.parse(req.body);
-      const userId = (req.user as { id: string }).id;
+  static create = asyncHandler(async (req: Request, res: Response) => {
+    // Validate request body against the create schema
+    const validationResult = productSchemas.create.safeParse(req);
+    if (!validationResult.success) {
+      throw new ValidationError(validationResult.error.message);
+    }
 
-      const product = await prisma.product.create({
+    const productData: ProductCreate = validationResult.data.body;
+    const userId = (req.user as { id: string }).id;
+
+    // Check if product with same SKU or barcode exists
+    const existingProduct = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { sku: productData.sku },
+          ...(productData.barcode ? [{ barcode: productData.barcode }] : [])
+        ]
+      }
+    });
+
+    if (existingProduct) {
+      throw new ConflictError(
+        'Product with this SKU or barcode already exists'
+      );
+    }
+
+    // Create product
+    const product = await prisma.product.create({
+      data: {
+        ...productData,
+        createdById: userId
+      },
+      include: {
+        category: true,
+        supplier: true
+      }
+    });
+
+    // Create initial inventory log if quantity > 0
+    if (productData.quantity > 0) {
+      await prisma.inventoryLog.create({
         data: {
-          ...data,
-          createdById: userId
+          productId: product.id,
+          type: LogType.PURCHASE,
+          quantity: productData.quantity,
+          reason: 'Initial stock'
+        }
+      });
+    }
+
+    res.status(201).json(product);
+  });
+
+  static getAll = asyncHandler(async (req: Request, res: Response) => {
+    const validationResult = productSchemas.getAll.safeParse(req);
+    if (!validationResult.success) {
+      throw new ValidationError(validationResult.error.message);
+    }
+
+    const {
+      page = '1',
+      limit = '10',
+      search,
+      category,
+      status,
+      expiringBefore,
+      sortBy = 'createdAt',
+      order = 'desc'
+    } = validationResult.data.query;
+
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Build where clause for filtering
+    const where: Prisma.ProductWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { genericName: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    if (category) {
+      where.categoryId = category;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (expiringBefore) {
+      where.expiryDate = {
+        lte: new Date(expiringBefore)
+      };
+    }
+
+    // Get products with pagination
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        skip,
+        take: limitNumber,
+        orderBy: {
+          [sortBy]: order
         },
         include: {
           category: true,
           supplier: true
         }
-      });
+      }),
+      prisma.product.count({ where })
+    ]);
 
-      // Create initial inventory log
-      if (data.quantity > 0) {
-        await prisma.inventoryLog.create({
-          data: {
-            productId: product.id,
-            type: 'PURCHASE',
-            quantity: data.quantity,
-            reason: 'Initial stock'
-          }
-        });
+    res.json({
+      data: products,
+      pagination: {
+        total,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages: Math.ceil(total / limitNumber)
       }
+    });
+  });
 
-      res.status(201).json(product);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res
-          .status(400)
-          .json({ error: 'Validation error', details: error.errors });
-        return;
-      }
-      next(error);
+  static getOne = asyncHandler(async (req: Request, res: Response) => {
+    const validationResult = productSchemas.getOne.safeParse(req);
+    if (!validationResult.success) {
+      throw new ValidationError(validationResult.error.message);
     }
-  }
 
-  static async getAll(req: Request, res: Response, next: NextFunction) {
-    try {
-      const {
-        page = '1',
-        limit = '10',
-        search,
-        category,
-        status,
-        expiringBefore
-      } = req.query as {
-        page?: string;
-        limit?: string;
-        search?: string;
-        category?: string;
-        status?: string;
-        expiringBefore?: string;
-      };
+    const { id } = validationResult.data.params;
 
-      const pageNumber = parseInt(page as string);
-      const limitNumber = parseInt(limit as string);
-      const skip = (pageNumber - 1) * limitNumber;
-
-      const where: Prisma.ProductWhereInput = {};
-
-      if (search) {
-        where.OR = [
-          { name: { contains: search as string, mode: 'insensitive' } },
-          { genericName: { contains: search as string, mode: 'insensitive' } },
-          { sku: { contains: search as string, mode: 'insensitive' } }
-        ];
-      }
-
-      if (category) {
-        where.categoryId = category;
-      }
-
-      if (status) {
-        if (Object.values(ProductStatus).includes(status as ProductStatus)) {
-          where.status = status as ProductStatus;
-        } else {
-          res.status(400).json({
-            error: 'Invalid status value',
-            validValues: Object.values(ProductStatus)
-          });
-          next();
-        }
-      }
-
-      if (expiringBefore) {
-        where.expiryDate = {
-          lte: new Date(expiringBefore as string)
-        };
-      }
-
-      const [products, total] = await Promise.all([
-        prisma.product.findMany({
-          where,
-          skip,
-          take: limitNumber,
-          include: {
-            category: true,
-            supplier: true
-          },
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        supplier: true,
+        inventoryLogs: {
           orderBy: {
             createdAt: 'desc'
-          }
-        }),
-        prisma.product.count({ where })
-      ]);
-
-      res.json({
-        data: products,
-        pagination: {
-          total,
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber)
+          },
+          take: 10
         }
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getOne(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-
-      const product = await prisma.product.findUnique({
-        where: { id },
-        include: {
-          category: true,
-          supplier: true,
-          inventoryLogs: {
-            orderBy: {
-              createdAt: 'desc'
-            },
-            take: 10
-          }
-        }
-      });
-
-      if (!product) {
-        res.status(404).json({ error: 'Product not found' });
-        return;
       }
+    });
 
-      res.json(product);
-    } catch (error) {
-      next(error);
+    if (!product) {
+      throw new NotFoundError('Product not found');
     }
-  }
 
-  static async update(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const data = productSchema.partial().parse(req.body);
+    res.json(product);
+  });
 
-      const product = await prisma.product.update({
-        where: { id },
-        data,
-        include: {
-          category: true,
-          supplier: true
+  static update = asyncHandler(async (req: Request, res: Response) => {
+    const validationResult = productSchemas.update.safeParse(req);
+    if (!validationResult.success) {
+      throw new ValidationError(validationResult.error.message);
+    }
+
+    const { id } = validationResult.data.params;
+    const updateData = validationResult.data.body;
+
+    // Check if product exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { id }
+    });
+
+    if (!existingProduct) {
+      throw new NotFoundError('Product not found');
+    }
+
+    // If SKU or barcode is being updated, check for duplicates
+    if (
+      (updateData.sku && updateData.sku !== existingProduct.sku) ||
+      (updateData.barcode && updateData.barcode !== existingProduct.barcode)
+    ) {
+      const duplicateProduct = await prisma.product.findFirst({
+        where: {
+          OR: [
+            { sku: updateData.sku },
+            ...(updateData.barcode ? [{ barcode: updateData.barcode }] : [])
+          ],
+          NOT: { id }
         }
       });
 
-      res.json(product);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res
-          .status(400)
-          .json({ error: 'Validation error', details: error.errors });
-        return;
+      if (duplicateProduct) {
+        throw new ConflictError(
+          'Product with this SKU or barcode already exists'
+        );
       }
-      next(error);
     }
-  }
 
-  static async updateStock(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
-      const { quantity, type, reason } = z
-        .object({
-          quantity: z.number().int(),
-          type: z.enum([
-            'PURCHASE',
-            'SALE',
-            'ADJUSTMENT',
-            'RETURN',
-            'EXPIRED',
-            'DAMAGED'
-          ]),
-          reason: z.string().optional()
-        })
-        .parse(req.body);
-
-      const product = await prisma.$transaction(async (tx) => {
-        // Get current product
-        const currentProduct = await tx.product.findUnique({
-          where: { id }
-        });
-
-        if (!currentProduct) {
-          throw new Error('Product not found');
-        }
-
-        // Calculate new quantity
-        let newQuantity = currentProduct.quantity;
-        if (['PURCHASE', 'RETURN'].includes(type)) {
-          newQuantity += quantity;
-        } else {
-          newQuantity -= quantity;
-        }
-
-        if (newQuantity < 0) {
-          throw new Error('Insufficient stock');
-        }
-
-        // Update product quantity
-        const updatedProduct = await tx.product.update({
-          where: { id },
-          data: {
-            quantity: newQuantity,
-            status: newQuantity === 0 ? 'OUT_OF_STOCK' : 'ACTIVE'
-          }
-        });
-
-        // Create inventory log
-        await tx.inventoryLog.create({
-          data: {
-            productId: id,
-            type: type as LogType,
-            quantity,
-            reason
-          }
-        });
-
-        return updatedProduct;
-      });
-
-      res.json(product);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res
-          .status(400)
-          .json({ error: 'Validation error', details: error.errors });
-        return;
+    // Update product
+    const updatedProduct = await prisma.product.update({
+      where: { id },
+      data: updateData,
+      include: {
+        category: true,
+        supplier: true
       }
-      next(error);
+    });
+
+    res.json(updatedProduct);
+  });
+
+  static updateStock = asyncHandler(async (req: Request, res: Response) => {
+    const validationResult = productSchemas.updateStock.safeParse(req);
+    if (!validationResult.success) {
+      throw new ValidationError(validationResult.error.message);
     }
-  }
 
-  static async delete(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = req.params;
+    const { id } = validationResult.data.params;
+    const stockData: StockUpdate = validationResult.data.body;
 
-      await prisma.product.delete({
+    const product = await prisma.$transaction(async (tx) => {
+      const currentProduct = await tx.product.findUnique({
         where: { id }
       });
 
-      res.status(204).end();
-    } catch (error) {
-      next(error);
-    }
-  }
+      if (!currentProduct) {
+        throw new NotFoundError('Product not found');
+      }
 
-  static async getLowStock(req: Request, res: Response, next: NextFunction) {
-    try {
-      const products = await prisma.product.findMany({
-        where: {
-          quantity: {
-            lte: prisma.product.fields.reorderPoint
-          },
-          status: 'ACTIVE'
-        },
-        include: {
-          supplier: true
-        },
-        orderBy: {
-          quantity: 'asc'
+      // Calculate new quantity
+      let newQuantity = currentProduct.quantity;
+      switch (stockData.type) {
+        case LogType.PURCHASE:
+        case LogType.RETURN:
+          newQuantity += stockData.quantity;
+          break;
+        case LogType.SALE:
+        case LogType.ADJUSTMENT:
+        case LogType.EXPIRED:
+        case LogType.DAMAGED:
+          newQuantity -= stockData.quantity;
+          break;
+      }
+
+      if (newQuantity < 0) {
+        throw new ValidationError('Insufficient stock');
+      }
+
+      // Update product quantity and status
+      const updatedProduct = await tx.product.update({
+        where: { id },
+        data: {
+          quantity: newQuantity,
+          status:
+            newQuantity === 0
+              ? ProductStatus.OUT_OF_STOCK
+              : ProductStatus.ACTIVE
         }
       });
 
-      res.json(products);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getExpiring(req: Request, res: Response, next: NextFunction) {
-    try {
-      const thirtyDaysFromNow = new Date();
-      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-      const products = await prisma.product.findMany({
-        where: {
-          expiryDate: {
-            lte: thirtyDaysFromNow,
-            gte: new Date()
-          },
-          status: 'ACTIVE'
-        },
-        orderBy: {
-          expiryDate: 'asc'
+      // Create inventory log
+      await tx.inventoryLog.create({
+        data: {
+          productId: id,
+          type: stockData.type,
+          quantity: stockData.quantity,
+          reason: stockData.reason
         }
       });
 
-      res.json(products);
-    } catch (error) {
-      next(error);
+      return updatedProduct;
+    });
+
+    res.json(product);
+  });
+
+  static delete = asyncHandler(async (req: Request, res: Response) => {
+    const validationResult = productSchemas.getOne.safeParse(req);
+    if (!validationResult.success) {
+      throw new ValidationError(validationResult.error.message);
     }
-  }
+
+    const { id } = validationResult.data.params;
+
+    // Check if product exists
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        inventoryLogs: true
+      }
+    });
+
+    if (!product) {
+      throw new NotFoundError('Product not found');
+    }
+
+    // Delete product and related inventory logs
+    await prisma.$transaction([
+      prisma.inventoryLog.deleteMany({
+        where: { productId: id }
+      }),
+      prisma.product.delete({
+        where: { id }
+      })
+    ]);
+
+    res.status(204).send();
+  });
+
+  static getLowStock = asyncHandler(async (_req: Request, res: Response) => {
+    const products = await prisma.product.findMany({
+      where: {
+        quantity: {
+          lte: prisma.product.fields.reorderPoint
+        },
+        status: ProductStatus.ACTIVE
+      },
+      include: {
+        supplier: true
+      },
+      orderBy: {
+        quantity: 'asc'
+      }
+    });
+
+    res.json(products);
+  });
+
+  static getExpiring = asyncHandler(async (_req: Request, res: Response) => {
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const products = await prisma.product.findMany({
+      where: {
+        AND: [
+          {
+            expiryDate: {
+              lte: thirtyDaysFromNow,
+              gte: new Date() // Only include products that haven't expired yet
+            }
+          },
+          {
+            status: ProductStatus.ACTIVE
+          }
+        ]
+      },
+      include: {
+        category: true,
+        supplier: true
+      },
+      orderBy: {
+        expiryDate: 'asc'
+      }
+    });
+
+    res.json(products);
+  });
 }

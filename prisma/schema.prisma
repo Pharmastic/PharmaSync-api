@@ -12,7 +12,7 @@ generator json {
   // Output directory for the JSON schemas
   output                   = "./json-schemas"
   // Include specific models only
-  includeModels            = ["User", "Product"]
+  includeModels            = ["User", "Product", "Category", "Supplier", "InventoryLog"]
   // Keep enum names as is
   keepRelationScalarFields = "true"
 }
